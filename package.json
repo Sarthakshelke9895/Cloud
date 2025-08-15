@@ -1,0 +1,24 @@
+{
+  "name": "cloud",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "description": "",
+  "dependencies": {
+    "body-parser": "^2.2.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "fs-extra": "^11.3.1",
+    "mongoose": "^8.17.0",
+    "multer": "^2.0.2",
+    "multer-gridfs-storage": "^5.0.2",
+    "twilio": "^5.8.0"
+  }
+}
