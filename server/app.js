@@ -280,6 +280,39 @@ app.delete('/notes/:id', async (req, res) => {
 });
 
 
-app.listen(process.env.PORT, '0.0.0.0', () => {
-  console.log(`🚀 Server running at http://0.0.0.0:${process.env.PORT}`);
+
+
+
+// Example Node.js / Express snippet
+app.post('/sync-contacts', async (req, res) => {
+  const { token } = req.body;
+
+  try {
+    const response = await fetch(
+      'https://people.googleapis.com/v1/people/me/connections?personFields=names,emailAddresses,phoneNumbers&pageSize=100',
+      {
+        headers: { Authorization: `Bearer ${token}` }
+      }
+    );
+    const data = await response.json();
+    res.json({ contacts: data.connections || [] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch contacts' });
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+app.listen(process.env.PORT,  () => {
+  console.log(`🚀 Server running at http://localhost:${process.env.PORT}`);
 });
