@@ -141,10 +141,7 @@ app.get('/share/:id', (req, res) => {
 
 
 
-
-
-
-
+const JWT_SECRET = process.env.JWT_SECRET;
 
 mongoose
   .connect(process.env.MONGO_URI, {
@@ -170,8 +167,14 @@ const User = mongoose.model("User", userSchema);
 app.post("/api/register-full", async (req, res) => {
   try {
     const { name, phone, email, password, mpin } = req.body;
+      const existing = await User.findOne({ $or: [{ email: email.toLowerCase() }, { phone }] });
+    if (existing) {
+      return res.status(409).json({ message: "Email or phone already registered" });
+    }
+      const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    const mpinHash = await bcrypt.hash(mpin, SALT_ROUNDS);
 
-    const newUser = new User({ name, phone, email, password, mpin });
+    const newUser = new User({ name, phone, email, passwordHash, mpinHash });
     await newUser.save();
 
     res.json({ message: "User registered successfully", name });
@@ -183,36 +186,69 @@ app.post("/api/register-full", async (req, res) => {
 // 🔹 Login with Email OR Phone + MPIN
 app.post("/api/login-mpin", async (req, res) => {
   try {
-    const { phoneOrEmail, mpin } = req.body; // ✅ updated key name
+    const { phoneOrEmail, mpin } = req.body;
 
-    // Find user by phone OR email + MPIN
-    const user = await User.findOne(
-      { 
-        $or: [
-          { phone: phoneOrEmail }, 
-          { email: phoneOrEmail }
-        ], 
-        mpin 
-      },
-      { name: 1, phone: 1, email: 1, mpin: 1 } // only select needed fields
-    );
-
-    if (!user) {
-      return res.status(401).json({ success: false, error: "Invalid credentials" });
+    // 1️⃣ Validate input
+    if (!phoneOrEmail || !mpin) {
+      return res.status(400).json({
+        success: false,
+        error: "Phone/Email and MPIN are required",
+      });
     }
 
+    // 2️⃣ Find user by email OR phone
+    const user = await User.findOne({
+      $or: [
+        { email: phoneOrEmail.toLowerCase() },
+        { phone: phoneOrEmail }
+      ]
+    });
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        error: "Invalid credentials",
+      });
+    }
+
+    // 3️⃣ Compare hashed MPIN with bcrypt
+    const mpinMatch = await bcrypt.compare(mpin, user.mpinHash); 
+
+    if (!mpinMatch) {
+      return res.status(401).json({
+        success: false,
+        error: "Invalid credentials",
+      });
+    }
+
+    // 4️⃣ Generate JWT Token
+    const token = jwt.sign(
+      { id: user._id, phone: user.phone, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    // 5️⃣ Send success response
     res.json({
       success: true,
       message: "Login successful",
-      name: user.name,
-      phone: user.phone,
-      email: user.email
+      token,
+      user: {
+        name: user.name,
+        phone: user.phone,
+        email: user.email
+      }
     });
 
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    console.error("Login error:", err);
+    res.status(500).json({
+      success: false,
+      error: "Server error"
+    });
   }
 });
+
 app.post('/notes', async (req, res) => {
   try {
     const note = new Note({ text: req.body.text });
